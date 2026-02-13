@@ -1,0 +1,87 @@
+/* Signature Canvas Styles */
+
+.signature-canvas-container {
+  position: relative;
+  width: 100%;
+  background: white;
+  border: 2px solid #1a472a;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  /* CRITICAL: Prevent scroll during touch */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  height: 200px;
+  cursor: crosshair;
+  border-radius: 8px;
+  /* CRITICAL: Prevent touch scroll */
+  touch-action: none;
+}
+
+.signature-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #999;
+  font-size: 16px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.signature-clear-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.signature-clear-btn:active {
+  background-color: #f57c00;
+}
+
+/* Corner markers for visual feedback */
+.signature-canvas-container::before,
+.signature-canvas-container::after {
+  content: '';
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 3px solid #1a472a;
+}
+
+.signature-canvas-container::before {
+  top: 12px;
+  left: 12px;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 4px;
+}
+
+.signature-canvas-container::after {
+  top: 12px;
+  right: 12px;
+  border-left: none;
+  border-bottom: none;
+  border-top-right-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .signature-canvas {
+    height: 180px;
+  }
+}

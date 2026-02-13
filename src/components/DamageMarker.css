@@ -1,0 +1,137 @@
+/* Damage Marker Styles */
+
+.damage-marker-widget {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.damage-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 350px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: crosshair;
+  /* CRITICAL: Prevent text selection and callouts */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* Allow tap without zoom delay */
+  touch-action: manipulation;
+}
+
+.car-diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Maintain EXACT PDF aspect ratio: 420:250 = 1.68 */
+  aspect-ratio: 1.68;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.damage-marker {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.marker-circle {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+  border: 2px solid #8b0000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3),
+              0 4px 8px rgba(255, 0, 0, 0.2);
+  animation: markerPulse 0.3s ease-out;
+}
+
+@keyframes markerPulse {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.loading-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #999;
+  font-size: 16px;
+  text-align: center;
+}
+
+.damage-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.marker-count {
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.clear-markers-btn {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.clear-markers-btn:active:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.clear-markers-btn:disabled {
+  background-color: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .damage-canvas {
+    min-height: 300px;
+  }
+
+  .marker-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+}
