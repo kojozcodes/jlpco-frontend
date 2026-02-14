@@ -4,6 +4,10 @@ import SignatureCanvas from './components/SignatureCanvas';
 import DamageMarker from './components/DamageMarker';
 import Login from './components/Login';
 
+// Preload car diagram
+const preloadImg = new Image();
+preloadImg.src = '/car_diagram.png';
+
 function App() {
   // ========================================
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY RETURNS
