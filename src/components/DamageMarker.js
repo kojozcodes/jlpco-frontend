@@ -68,8 +68,8 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
       return;
     }
 
-    const normalizedX = relativeX / imageRect.width;
-    const normalizedY = relativeY / imageRect.height;
+    const normalizedX = relativeX / rect.width;
+    const normalizedY = relativeY / rect.height;
 
     // Check if clicking on existing marker to remove it
     const markerRadius = 12; // Match desktop app
@@ -117,32 +117,34 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
         }}
       >
         {/* Car diagram image with EXACT aspect ratio */}
-        <img
-          ref={imageRef}
-          src="/car_diagram.png"
-          alt="Vehicle Diagram"
-          className="car-diagram"
-          onLoad={handleImageLoad}
-          draggable={false}
-        />
+        <div style={{ position: 'relative', width: '100%' }}>
+          <img
+            ref={imageRef}
+            src="/car_diagram.png"
+            alt="Vehicle Diagram"
+            className="car-diagram"
+            onLoad={handleImageLoad}
+            draggable={false}
+          />
 
-        {/* Render damage markers */}
-        {imageLoaded && markers.map((marker, index) => {
-          return (
-            <div
-              key={index}
-              className="damage-marker"
-              style={{
-                left: `${marker.x * 100}%`,
-                top: `${marker.y * 100}%`,
-              }}
-            >
-              <div className="marker-circle">
-                {index + 1}
+          {/* Render damage markers */}
+          {imageLoaded && markers.map((marker, index) => {
+            return (
+              <div
+                key={index}
+                className="damage-marker"
+                style={{
+                  left: `${marker.x * 100}%`,
+                  top: `${marker.y * 100}%`,
+                }}
+              >
+                <div className="marker-circle">
+                  {index + 1}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
 
         {!imageLoaded && (
           <div className="loading-placeholder">
