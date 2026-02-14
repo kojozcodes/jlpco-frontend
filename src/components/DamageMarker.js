@@ -14,8 +14,8 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageRect, setImageRect] = useState(null);
 
-  // EXACT PDF dimensions from your template
-  const PDF_ASPECT_RATIO = 420 / 250; // 1.68
+  // // EXACT PDF dimensions from your template
+  // const PDF_ASPECT_RATIO = 420 / 250; // 1.68
 
   useEffect(() => {
     const updateImageRect = () => {
