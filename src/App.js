@@ -3,6 +3,7 @@ import './App.css';
 import SignatureCanvas from './components/SignatureCanvas';
 import DamageMarker from './components/DamageMarker';
 import Login from './components/Login';
+import toast, { Toaster } from 'react-hot-toast';
 
 // Preload car diagram
 const preloadImg = new Image();
@@ -116,7 +117,7 @@ function App() {
   const handleGeneratePDF = async () => {
     const errors = validateForm();
     if (errors.length > 0) {
-      alert('Please fix the following errors:\n\n• ' + errors.join('\n• '));
+      toast.error('Please fix the following errors:\n\n• ' + errors.join('\n• '));
       return;
     }
 
@@ -144,7 +145,7 @@ function App() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          alert('Session expired. Please login again.');
+          toast.error('Session expired. Please login again.');
           handleLogout();
           return;
         }
@@ -162,10 +163,10 @@ function App() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      alert('PDF generated successfully!');
+      toast.success('PDF generated successfully!');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert(`Failed to generate PDF: ${error.message}`);
+      toast.error(`Failed to generate PDF: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -236,6 +237,7 @@ function App() {
   
   return (
     <div className="app">
+      <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
       {/* Header with Logout Button */}
       <header className="header">
         <img src="/logo.png" alt="JL PCO" className="logo" />
