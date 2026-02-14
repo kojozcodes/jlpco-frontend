@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState} from 'react';
 import './DamageMarker.css';
 
 /**
@@ -12,33 +12,33 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
   const containerRef = useRef(null);
   const imageRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageRect, setImageRect] = useState(null);
+  // const [imageRect, setImageRect] = useState(null);
 
   // // EXACT PDF dimensions from your template
   // const PDF_ASPECT_RATIO = 420 / 250; // 1.68
 
-  useEffect(() => {
-    const updateImageRect = () => {
-      if (imageRef.current && imageLoaded) {
-        const rect = imageRef.current.getBoundingClientRect();
-        setImageRect({
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-    };
+  // useEffect(() => {
+  //   const updateImageRect = () => {
+  //     if (imageRef.current && imageLoaded) {
+  //       const rect = imageRef.current.getBoundingClientRect();
+  //       setImageRect({
+  //         x: rect.left,
+  //         y: rect.top,
+  //         width: rect.width,
+  //         height: rect.height,
+  //       });
+  //     }
+  //   };
 
-    updateImageRect();
-    window.addEventListener('resize', updateImageRect);
-    window.addEventListener('scroll', updateImageRect);
+  //   updateImageRect();
+  //   window.addEventListener('resize', updateImageRect);
+  //   window.addEventListener('scroll', updateImageRect);
 
-    return () => {
-      window.removeEventListener('resize', updateImageRect);
-      window.removeEventListener('scroll', updateImageRect);
-    };
-  }, [imageLoaded]);
+  //   return () => {
+  //     window.removeEventListener('resize', updateImageRect);
+  //     window.removeEventListener('scroll', updateImageRect);
+  //   };
+  // }, [imageLoaded]);
 
   const handleImageLoad = () => {
     setImageLoaded(true);
