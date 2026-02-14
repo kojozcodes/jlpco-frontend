@@ -45,22 +45,25 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
   };
 
   const handleCanvasClick = (e) => {
-    if (!imageRect) return;
+    const img = imageRef.current;
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
 
     // Get click/touch position
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const touch = e.changedTouches?.[0] || e.touches?.[0];
+    const clientX = touch ? touch.clientX : e.clientX;
+    const clientY = touch ? touch.clientY : e.clientY;
 
     // Convert to normalized coordinates (0-1) relative to image
-    const relativeX = clientX - imageRect.x;
-    const relativeY = clientY - imageRect.y;
+    const relativeX = clientX - rect.left;
+    const relativeY = clientY - rect.top;
 
     // Check if click is within image bounds
     if (
       relativeX < 0 ||
-      relativeX > imageRect.width ||
+      relativeX > rect.width ||
       relativeY < 0 ||
-      relativeY > imageRect.height
+      relativeY > rect.height
     ) {
       return;
     }
@@ -72,8 +75,8 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
     const markerRadius = 12; // Match desktop app
     for (let i = 0; i < markers.length; i++) {
       const marker = markers[i];
-      const markerScreenX = imageRect.x + marker.x * imageRect.width;
-      const markerScreenY = imageRect.y + marker.y * imageRect.height;
+      const markerScreenX = rect.left + marker.x * rect.width;
+      const markerScreenY = rect.top + marker.y * rect.height;
 
       const distance = Math.sqrt(
         Math.pow(clientX - markerScreenX, 2) +
@@ -108,7 +111,10 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
         className="damage-canvas"
         ref={containerRef}
         onClick={handleCanvasClick}
-        onTouchStart={handleCanvasClick}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          handleCanvasClick(e);
+        }}
       >
         {/* Car diagram image with EXACT aspect ratio */}
         <img
@@ -121,17 +127,14 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
         />
 
         {/* Render damage markers */}
-        {imageLoaded && imageRect && markers.map((marker, index) => {
-          const screenX = imageRect.x + marker.x * imageRect.width;
-          const screenY = imageRect.y + marker.y * imageRect.height;
-
+        {imageLoaded && markers.map((marker, index) => {
           return (
             <div
               key={index}
               className="damage-marker"
               style={{
-                left: `${screenX}px`,
-                top: `${screenY}px`,
+                left: `${marker.x * 100}%`,
+                top: `${marker.y * 100}%`,
               }}
             >
               <div className="marker-circle">
