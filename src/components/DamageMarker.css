@@ -11,6 +11,7 @@
 .damage-canvas {
   position: relative;
   width: 100%;
+  min-height: auto;
   background: white;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
