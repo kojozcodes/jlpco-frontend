@@ -37,7 +37,11 @@ const SignatureCanvas = forwardRef((props, ref) => {
 
     // Initialize SignaturePad with custom options
     signaturePadRef.current = new SignaturePad(canvas, {
-      backgroundColor: 'rgb(255, 255, 255)',
+      // Transparent, not white: the exported PNG is stamped straight onto the
+      // agreement, and an opaque background punches a white rectangle through
+      // whatever the template prints underneath it. The container behind the
+      // canvas is white, so this looks no different on screen.
+      backgroundColor: 'rgba(0, 0, 0, 0)',
       penColor: 'rgb(0, 0, 0)',
       minWidth: 2,
       maxWidth: 3,

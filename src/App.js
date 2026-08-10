@@ -48,7 +48,9 @@ function App() {
     deposit_amount: '',
     deposit_date: '',
     deposit_payment_type: '',
-    
+    weekly_rent_amount: '',
+    payment_start_date: '',
+
     // Vehicle condition
     damage_notes: '',
     wheel_locking_nut: '',
@@ -195,6 +197,8 @@ function App() {
         deposit_amount: '',
         deposit_date: '',
         deposit_payment_type: '',
+        weekly_rent_amount: '',
+        payment_start_date: '',
         damage_notes: '',
         wheel_locking_nut: '',
         immobiliser_installed: '',
@@ -546,6 +550,31 @@ function App() {
                   autoComplete="off"
                 />
               </div>
+
+              <div className="form-group">
+                <label>Weekly Rent Amount (£)</label>
+                <input
+                  type="number"
+                  name="weekly_rent_amount"
+                  value={formData.weekly_rent_amount}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Payment Start Date</label>
+                <input
+                  type="date"
+                  name="payment_start_date"
+                  value={formData.payment_start_date}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                />
+              </div>
             </div>
 
             {/* Equipment Section */}
@@ -642,6 +671,10 @@ function App() {
                 placeholder="Describe any damage in detail..."
                 rows="4"
               />
+              <p className="field-hint">
+                The agreement has room for 3 printed lines. Anything longer is
+                shortened, so keep each point brief.
+              </p>
             </div>
           </div>
         )}

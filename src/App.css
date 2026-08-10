@@ -316,13 +316,22 @@ body {
   scroll-behavior: smooth;
 }
 
-/* Loading state */
-.btn:disabled {
+/* Hint text under a field */
+.field-hint {
+  margin-top: 8px;
+  color: #777;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Loading state. Scoped to the primary button: when both footer buttons are
+   disabled during generation, only the one doing the work should spin. */
+.btn-primary:disabled {
   position: relative;
   color: transparent;
 }
 
-.btn:disabled::after {
+.btn-primary:disabled::after {
   content: '';
   position: absolute;
   width: 16px;
