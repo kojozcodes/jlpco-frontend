@@ -9,6 +9,104 @@ import toast, { Toaster } from 'react-hot-toast';
 const preloadImg = new Image();
 preloadImg.src = '/car_diagram.png';
 
+const EMPTY_FORM = {
+  // Hirer details
+  full_name: '',
+  dob: '',
+  address: '',
+  email: '',
+  phone_number: '',
+  pco_badge_number: '',
+  licence_number: '',
+  licence_expiry: '',
+  ni_number: '',
+
+  // Vehicle details
+  vehicle_reg: '',
+  make_model: '',
+  vin_number: '',
+  hire_start: '',
+
+  // Insurance details
+  insurance_provider: '',
+  policy_start: '',
+  policy_expiry: '',
+  cover_level: '',
+
+  // Deposit details
+  deposit_amount: '',
+  deposit_date: '',
+  deposit_payment_type: '',
+  weekly_rent_amount: '',
+  payment_start_date: '',
+
+  // Vehicle condition
+  damage_notes: '',
+  wheel_locking_nut: '',
+  immobiliser_installed: '',
+  dashcam_installed: '',
+  dashcam_serial: '',
+  puncture_repair_kit: '',
+
+  // Signature dates
+  hirer_sig_date: '',
+  lessor_sig_date: '',
+};
+
+// Details carried over to the next agreement, so starting a new hire only
+// means typing what actually changed.
+//
+// Anything identifying a hirer or a particular vehicle is deliberately left
+// out - name, date of birth, address, contact details, licence, NI number,
+// registration, VIN, dashcam serial, and every per-hire date. Carrying those
+// over risks an agreement going out with the previous hirer's details still
+// sitting in a field nobody scrolled back to, which on a signed contract is
+// both a data protection problem and the wrong contract.
+const REMEMBERED_FIELDS = [
+  'insurance_provider',
+  'policy_start',
+  'policy_expiry',
+  'cover_level',
+  'deposit_amount',
+  'deposit_payment_type',
+  'weekly_rent_amount',
+  'wheel_locking_nut',
+  'immobiliser_installed',
+  'dashcam_installed',
+  'puncture_repair_kit',
+];
+
+const SAVED_DETAILS_KEY = 'jlpco_saved_details';
+
+// localStorage throws in private browsing on iOS. Failing to remember should
+// never be the reason an operator cannot produce an agreement, so both of
+// these fail quietly.
+const loadSavedDetails = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_DETAILS_KEY) || '{}');
+    return REMEMBERED_FIELDS.reduce((details, field) => {
+      if (typeof saved[field] === 'string') details[field] = saved[field];
+      return details;
+    }, {});
+  } catch (e) {
+    return {};
+  }
+};
+
+const saveDetails = (values) => {
+  try {
+    const details = REMEMBERED_FIELDS.reduce((saved, field) => {
+      saved[field] = values[field] || '';
+      return saved;
+    }, {});
+    localStorage.setItem(SAVED_DETAILS_KEY, JSON.stringify(details));
+  } catch (e) {
+    // Nothing to do - the agreement itself was still generated.
+  }
+};
+
+const newAgreementForm = () => ({ ...EMPTY_FORM, ...loadSavedDetails() });
+
 function App() {
   // ========================================
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY RETURNS
@@ -19,50 +117,8 @@ function App() {
   const [authToken, setAuthToken] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // FORM STATE (WITH 3 NEW FIELDS)
-  const [formData, setFormData] = useState({
-    // Hirer details
-    full_name: '',
-    dob: '',
-    address: '',
-    email: '',              // ✅ NEW FIELD
-    phone_number: '',       // ✅ NEW FIELD
-    pco_badge_number: '',   // ✅ NEW FIELD
-    licence_number: '',
-    licence_expiry: '',
-    ni_number: '',
-    
-    // Vehicle details
-    vehicle_reg: '',
-    make_model: '',
-    vin_number: '',
-    hire_start: '',
-    
-    // Insurance details
-    insurance_provider: '',
-    policy_start: '',
-    policy_expiry: '',
-    cover_level: '',
-    
-    // Deposit details
-    deposit_amount: '',
-    deposit_date: '',
-    deposit_payment_type: '',
-    weekly_rent_amount: '',
-    payment_start_date: '',
-
-    // Vehicle condition
-    damage_notes: '',
-    wheel_locking_nut: '',
-    immobiliser_installed: '',
-    dashcam_installed: '',
-    dashcam_serial: '',
-    puncture_repair_kit: '',
-    
-    // Signature dates
-    hirer_sig_date: '',
-    lessor_sig_date: '',
-  });
+  // FORM STATE - starts from the details carried over from the last agreement
+  const [formData, setFormData] = useState(newAgreementForm);
 
   const [activeTab, setActiveTab] = useState('form');
   const [damageMarkers, setDamageMarkers] = useState([]);
@@ -165,6 +221,10 @@ function App() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
+      // Only once the agreement has actually been produced - a failed attempt
+      // should not change what the next one starts with.
+      saveDetails(formData);
+
       toast.success('PDF generated successfully!');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -174,40 +234,15 @@ function App() {
     }
   };
 
+  // Clearing starts the next agreement rather than emptying everything: hirer,
+  // vehicle, damage and signatures go, the saved details stay.
   const handleClearForm = () => {
-    if (window.confirm('Are you sure you want to clear all form fields?')) {
-      setFormData({
-        full_name: '',
-        dob: '',
-        address: '',
-        email: '',
-        phone_number: '',
-        pco_badge_number: '',
-        licence_number: '',
-        licence_expiry: '',
-        ni_number: '',
-        vehicle_reg: '',
-        make_model: '',
-        vin_number: '',
-        hire_start: '',
-        insurance_provider: '',
-        policy_start: '',
-        policy_expiry: '',
-        cover_level: '',
-        deposit_amount: '',
-        deposit_date: '',
-        deposit_payment_type: '',
-        weekly_rent_amount: '',
-        payment_start_date: '',
-        damage_notes: '',
-        wheel_locking_nut: '',
-        immobiliser_installed: '',
-        dashcam_installed: '',
-        dashcam_serial: '',
-        puncture_repair_kit: '',
-        hirer_sig_date: '',
-        lessor_sig_date: '',
-      });
+    if (window.confirm(
+      'Start a new agreement?\n\n' +
+      'Hirer, vehicle, damage and signature details will be cleared. ' +
+      'Insurance, deposit and equipment details will be kept.'
+    )) {
+      setFormData(newAgreementForm());
       setDamageMarkers([]);
       hirerSigRef.current?.clear();
       lessorSigRef.current?.clear();
