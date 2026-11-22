@@ -445,6 +445,10 @@ function App() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // For single-line fields, where Enter has nothing to do. The Address and
+  // Damage Notes boxes deliberately do without it: there Enter starts a new
+  // line, which the agreement prints as ", " within the address and as a new
+  // printed line in the notes.
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -819,7 +823,6 @@ function App() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
                   placeholder="Enter full address"
                   rows="3"
                 />
@@ -1177,7 +1180,6 @@ function App() {
                 name="damage_notes"
                 value={formData.damage_notes}
                 onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
                 placeholder="Describe any damage in detail..."
                 rows="4"
               />
