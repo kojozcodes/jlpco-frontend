@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import SignatureCanvas from './SignatureCanvas';
+import ConfirmDialog from './ConfirmDialog';
 import API_BASE_URL from '../config';
 import './EndHireForm.css';
+
+// 'a', 'a and b', 'a, b and c', starting with a capital.
+const asSentence = (items) => {
+  const text = items.length > 1
+    ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+    : items[0];
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
 
 /**
  * EndHireForm
@@ -17,6 +26,13 @@ const EndHireForm = ({ agreement, authToken, onCancel, onEnded, onSessionExpired
   const [depositWithheld, setDepositWithheld] = useState('');
   const [deductionReason, setDeductionReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // What closing would throw away, while the operator is asked about it.
+  const [discarding, setDiscarding] = useState(null);
+
+  // The deposit as read back from the agreement. Arriving with it filled in is
+  // not something the operator did, so it does not count as an entry.
+  const prefilledDepositRef = useRef('');
 
   const hirerSigRef = useRef(null);
   const lessorSigRef = useRef(null);
@@ -34,7 +50,9 @@ const EndHireForm = ({ agreement, authToken, onCancel, onEnded, onSessionExpired
         if (!response.ok) return;
         const data = await response.json();
         if (!cancelled) {
-          setDepositHeld((data.form_data || {}).deposit_amount || '');
+          const prefilled = String((data.form_data || {}).deposit_amount || '');
+          prefilledDepositRef.current = prefilled;
+          setDepositHeld(prefilled);
         }
       } catch (e) {
         // Leaving it blank is recoverable; the operator can type it.
@@ -91,8 +109,42 @@ const EndHireForm = ({ agreement, authToken, onCancel, onEnded, onSessionExpired
     }
   };
 
+  // Everything closing the form now would lose, named. This is filled in while
+  // the car is being handed back, so a hirer whose signature is lost has often
+  // already left, and it cannot simply be taken again.
+  const describeEntries = () => {
+    const entries = [];
+    if (returnNotes.trim()) entries.push('the condition notes');
+    if (depositWithheld.trim() || deductionReason.trim()
+        || depositHeld !== prefilledDepositRef.current) {
+      entries.push('the deposit figures');
+    }
+    const hirerSigned = !(hirerSigRef.current?.isEmpty() ?? true);
+    const lessorSigned = !(lessorSigRef.current?.isEmpty() ?? true);
+    if (hirerSigned && lessorSigned) entries.push('both signatures');
+    else if (hirerSigned) entries.push("the hirer's signature");
+    else if (lessorSigned) entries.push("the lessor's signature");
+    return entries;
+  };
+
+  // The one way out, for the backdrop and the Cancel button alike. An empty
+  // form just closes. One with anything in it asks first: a tap that misses
+  // the panel, or lands on Cancel beside End hire, should not cost the lot.
+  const requestClose = () => {
+    if (isSaving) return;
+    const entries = describeEntries();
+    if (entries.length) {
+      setDiscarding(entries);
+      return;
+    }
+    onCancel();
+  };
+
+  // A sibling of the form rather than inside it, so taps on the question do not
+  // bubble into the form's backdrop and ask it all over again.
   return (
-    <div className="end-hire-backdrop" onClick={isSaving ? undefined : onCancel}>
+    <>
+    <div className="end-hire-backdrop" onClick={requestClose}>
       <div className="end-hire-panel" onClick={(e) => e.stopPropagation()}>
         <div className="end-hire-head">
           <h2>End hire</h2>
@@ -178,7 +230,7 @@ const EndHireForm = ({ agreement, authToken, onCancel, onEnded, onSessionExpired
           <button
             type="button"
             className="end-hire-btn"
-            onClick={onCancel}
+            onClick={requestClose}
             disabled={isSaving}
           >
             Cancel
@@ -194,6 +246,19 @@ const EndHireForm = ({ agreement, authToken, onCancel, onEnded, onSessionExpired
         </div>
       </div>
     </div>
+
+    {discarding && (
+      <ConfirmDialog
+        title="Discard this end of hire?"
+        message={`${asSentence(discarding)} will be lost.`}
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        danger
+        onConfirm={() => { setDiscarding(null); onCancel(); }}
+        onCancel={() => setDiscarding(null)}
+      />
+    )}
+    </>
   );
 };
 
