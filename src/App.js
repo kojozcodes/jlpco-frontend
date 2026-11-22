@@ -183,6 +183,78 @@ const draftHasWork = (formData, damageMarkers) => (
 // already been produced.
 const snapshotOf = (formData, damageMarkers) => JSON.stringify([formData, damageMarkers]);
 
+// Dates from <input type="date"> arrive as YYYY-MM-DD, which compares
+// correctly as plain text. Comparing them that way avoids new Date(), which
+// reads a bare date as midnight UTC and can land on the wrong day in BST.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Today in UK time, as YYYY-MM-DD. The business runs on UK time, so a phone
+// set to another timezone should not move what counts as today.
+const todayInUK = () => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type) => parts.find((p) => p.type === type).value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
+// YYYY-MM-DD as DD/MM/YYYY, the way the agreement prints it.
+const asUKDate = (iso) => iso.split('-').reverse().join('/');
+
+// Dates that would leave the hire uncovered: a driving licence or insurance
+// policy that has lapsed, or a policy not yet started, by the time it matters.
+// Each comes with a short hint for under its field and a full sentence for the
+// warning at Generate, in the order the fields appear on the form.
+//
+// Measured against the hire start, or today when that is later or not set. A
+// hire that started in the past is still running, so a licence that has
+// expired since then matters as much as one that expired before it.
+//
+// Grounds to look again, not to refuse: a renewed licence may simply not have
+// been typed in yet.
+const findDateProblems = (form, today = todayInUK()) => {
+  const valid = (value) => (ISO_DATE.test(value || '') ? value : '');
+  const hireStart = valid(form.hire_start);
+  const startsLater = hireStart > today;
+  const reference = startsLater ? hireStart : today;
+  const beforeStart = startsLater ? `, before the hire starts on ${asUKDate(hireStart)}` : '';
+  const problems = [];
+
+  const checkExpiry = (field, noun, shortNoun) => {
+    const expiry = valid(form[field]);
+    if (!expiry || expiry >= reference) return;
+    const expired = expiry < today;
+    problems.push({
+      field,
+      title: expired ? `${noun} expired` : `${noun} expires before the hire`,
+      hint: expired
+        ? `This ${shortNoun} has expired.`
+        : `This ${shortNoun} expires before the hire starts.`,
+      warning: `The ${noun.toLowerCase()} ${expired ? 'expired' : 'expires'} `
+        + `on ${asUKDate(expiry)}${beforeStart}.`,
+    });
+  };
+
+  checkExpiry('licence_expiry', 'Driving licence', 'licence');
+
+  const policyStart = valid(form.policy_start);
+  if (policyStart && policyStart > reference) {
+    problems.push({
+      field: 'policy_start',
+      title: 'Insurance not started',
+      hint: startsLater
+        ? 'This policy starts after the hire does.'
+        : 'This policy has not started yet.',
+      warning: `The insurance policy does not start until ${asUKDate(policyStart)}`
+        + `${startsLater ? `, after the hire starts on ${asUKDate(hireStart)}` : ''}.`,
+    });
+  }
+
+  checkExpiry('policy_expiry', 'Insurance policy', 'policy');
+
+  return problems;
+};
+
 function App() {
   // ========================================
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY RETURNS
@@ -206,7 +278,12 @@ function App() {
   // Signatures tab to check a field.
   const [hirerSignature, setHirerSignature] = useState(null);
   const [lessorSignature, setLessorSignature] = useState(null);
-  const [pendingUnsigned, setPendingUnsigned] = useState(false);
+  // What is worth a second look before generating: dates that leave the hire
+  // uncovered and missing signatures, asked about together.
+  const [pendingWarnings, setPendingWarnings] = useState(null);
+
+  // A field to bring into view once the Details tab has rendered.
+  const [scrollTarget, setScrollTarget] = useState(null);
 
   // An unfinished agreement found in storage at sign-in, waiting for the
   // operator to say whether to carry on with it.
@@ -246,6 +323,34 @@ function App() {
     }, 500);
     return () => clearTimeout(timer);
   }, [formData, damageMarkers, isAuthenticated, pendingDraft, producedSnapshot]);
+
+  // After Go back from the warning, bring the date that needs fixing into
+  // view. The Details tab is long, and may not have been showing when the
+  // warning was answered, so this waits for it to render.
+  useEffect(() => {
+    if (!scrollTarget || activeTab !== 'form') return;
+    document.querySelector(`[name="${scrollTarget}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setScrollTarget(null);
+  }, [scrollTarget, activeTab]);
+
+  // Worked out on every render, so a hint appears under a date as soon as it
+  // is entered and goes as soon as it is corrected. Insurance dates are carried
+  // over from the last agreement, so a lapsed fleet policy shows up the moment
+  // a new agreement is started rather than at the end.
+  const dateProblems = findDateProblems(formData);
+  const dateProblemFor = (field) => dateProblems.find((p) => p.field === field);
+
+  const dateWarningProps = (field) => (dateProblemFor(field)
+    ? { className: 'input-warning', 'aria-describedby': `${field}-warning` }
+    : {});
+
+  const renderDateWarning = (field) => {
+    const problem = dateProblemFor(field);
+    return problem && (
+      <p id={`${field}-warning`} className="field-hint field-warning">{problem.hint}</p>
+    );
+  };
 
   // ========================================
   // EVENT HANDLERS
@@ -377,15 +482,56 @@ function App() {
       return;
     }
 
-    // An unsigned agreement is allowed: they are sometimes printed and signed
-    // by hand. It should be a decision though, rather than something noticed
-    // after the hirer has driven off.
-    if (!hirerSignature || !lessorSignature) {
-      setPendingUnsigned(true);
+    // Worth a second look rather than reasons to refuse. An agreement is
+    // sometimes printed and signed by hand, and a renewed licence may not have
+    // been typed in yet. Each should be a decision, though, rather than
+    // something noticed after the hirer has driven off.
+    const unsigned = !hirerSignature || !lessorSignature;
+    if (dateProblems.length || unsigned) {
+      setPendingWarnings({ dates: dateProblems, unsigned });
       return;
     }
 
     generatePDF();
+  };
+
+  // Everything worth checking in one question, rather than one after another.
+  const warningDialog = ({ dates, unsigned }) => {
+    if (!dates.length) {
+      return {
+        title: 'Generate without a signature?',
+        message: `${unsignedDescription()} The agreement will print with `
+          + 'blank signature lines to be signed by hand.',
+        cancelLabel: 'Go and sign',
+      };
+    }
+    const lines = [
+      ...dates.map((problem) => problem.warning),
+      ...(unsigned ? [unsignedDescription()] : []),
+    ];
+    return {
+      title: lines.length === 1 ? dates[0].title : `${lines.length} things to check`,
+      message: lines.length === 1 ? lines[0] : lines.map((line) => `• ${line}`).join('\n'),
+      cancelLabel: 'Go back',
+    };
+  };
+
+  const confirmWarnings = () => {
+    setPendingWarnings(null);
+    generatePDF();
+  };
+
+  // Back to the first thing to fix: a date, brought into view on the Details
+  // tab, or failing that the signatures.
+  const dismissWarnings = () => {
+    const { dates } = pendingWarnings;
+    setPendingWarnings(null);
+    if (dates.length) {
+      setActiveTab('form');
+      setScrollTarget(dates[0].field);
+    } else {
+      setActiveTab('signatures');
+    }
   };
 
   const handleSessionExpired = () => {
@@ -516,15 +662,12 @@ function App() {
           onCancel={discardDraft}
         />
       )}
-      {pendingUnsigned && (
+      {pendingWarnings && (
         <ConfirmDialog
-          title="Generate without a signature?"
-          message={`${unsignedDescription()} The agreement will print with `
-            + 'blank signature lines to be signed by hand.'}
+          {...warningDialog(pendingWarnings)}
           confirmLabel="Generate anyway"
-          cancelLabel="Go and sign"
-          onConfirm={() => { setPendingUnsigned(false); generatePDF(); }}
-          onCancel={() => { setPendingUnsigned(false); setActiveTab('signatures'); }}
+          onConfirm={confirmWarnings}
+          onCancel={dismissWarnings}
         />
       )}
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
@@ -685,7 +828,9 @@ function App() {
                   value={formData.licence_expiry}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  {...dateWarningProps('licence_expiry')}
                 />
+                {renderDateWarning('licence_expiry')}
               </div>
 
               <div className="form-group">
@@ -782,7 +927,9 @@ function App() {
                   value={formData.policy_start}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  {...dateWarningProps('policy_start')}
                 />
+                {renderDateWarning('policy_start')}
               </div>
 
               <div className="form-group">
@@ -793,7 +940,9 @@ function App() {
                   value={formData.policy_expiry}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  {...dateWarningProps('policy_expiry')}
                 />
+                {renderDateWarning('policy_expiry')}
               </div>
 
               <div className="form-group">

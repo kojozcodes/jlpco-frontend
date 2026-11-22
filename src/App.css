@@ -362,6 +362,23 @@ body {
   line-height: 1.4;
 }
 
+/* A date that would leave the hire uncovered. Amber rather than red: it is
+   worth a second look, not an error, and the agreement can still be made.
+   The text colour keeps 4.5:1 contrast on white at this size. */
+.form-group input.input-warning {
+  border-color: #e0a030;
+}
+
+.form-group input.input-warning:focus {
+  border-color: #c98a10;
+  box-shadow: 0 0 0 3px rgba(224, 160, 48, 0.18);
+}
+
+.field-hint.field-warning {
+  color: #9a5b00;
+  font-weight: 500;
+}
+
 /* Loading state. Scoped to the primary button: when both footer buttons are
    disabled during generation, only the one doing the work should spin. */
 .btn-primary:disabled {
