@@ -210,9 +210,11 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
 
   const formatEnded = (iso) => {
     const date = new Date(iso);
+    // Pinned to UK time so this always agrees with the time printed on the
+    // document, whatever the device happens to be set to.
     return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
     });
   };
 
