@@ -1,4 +1,5 @@
-import React, { useRef, useState} from 'react';
+import React, { useRef, useState } from 'react';
+import ConfirmDialog from './ConfirmDialog';
 import './DamageMarker.css';
 
 /**
@@ -99,14 +100,23 @@ const DamageMarker = ({ markers, onMarkersChange }) => {
     onMarkersChange(newMarkers);
   };
 
-  const handleClearMarkers = () => {
-    if (window.confirm('Clear all damage markers?')) {
-      onMarkersChange([]);
-    }
-  };
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearMarkers = () => setIsClearing(true);
 
   return (
     <div className="damage-marker-widget">
+      {isClearing && (
+        <ConfirmDialog
+          title="Clear all damage markers?"
+          message={`All ${markers.length} marker${markers.length === 1 ? '' : 's'} `
+            + 'will be removed from the diagram.'}
+          confirmLabel="Clear all"
+          danger
+          onConfirm={() => { onMarkersChange([]); setIsClearing(false); }}
+          onCancel={() => setIsClearing(false)}
+        />
+      )}
       <div
         className="damage-canvas"
         ref={containerRef}

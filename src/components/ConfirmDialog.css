@@ -1,0 +1,83 @@
+/* In-app confirmation, in place of window.confirm */
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 300; /* above the end of hire form, which can raise one */
+}
+
+.confirm-panel {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  animation: confirmIn 0.18s ease-out;
+}
+
+@keyframes confirmIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.confirm-title {
+  color: #1a472a;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+}
+
+.confirm-message {
+  color: #555;
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 22px 0;
+  white-space: pre-line;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 13px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  color: #555;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.confirm-btn.primary {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.confirm-btn.danger {
+  background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.confirm-btn:focus-visible {
+  outline: 3px solid rgba(46, 125, 50, 0.4);
+  outline-offset: 2px;
+}
+
+.confirm-btn:active {
+  transform: scale(0.98);
+}

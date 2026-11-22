@@ -4,6 +4,7 @@ import SignatureCanvas from './components/SignatureCanvas';
 import DamageMarker from './components/DamageMarker';
 import Login from './components/Login';
 import History from './components/History';
+import ConfirmDialog from './components/ConfirmDialog';
 import toast, { Toaster } from 'react-hot-toast';
 import API_BASE_URL from './config';
 
@@ -125,6 +126,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('form');
   const [damageMarkers, setDamageMarkers] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   
   const hirerSigRef = useRef(null);
   const lessorSigRef = useRef(null);
@@ -261,16 +263,15 @@ function App() {
   // Clearing starts the next agreement rather than emptying everything: hirer,
   // vehicle, damage and signatures go, the saved details stay.
   const handleClearForm = () => {
-    if (window.confirm(
-      'Start a new agreement?\n\n' +
-      'Hirer, vehicle, damage and signature details will be cleared. ' +
-      'Insurance, deposit and equipment details will be kept.'
-    )) {
-      setFormData(newAgreementForm());
-      setDamageMarkers([]);
-      hirerSigRef.current?.clear();
-      lessorSigRef.current?.clear();
-    }
+    setIsClearing(true);
+  };
+
+  const startNewAgreement = () => {
+    setFormData(newAgreementForm());
+    setDamageMarkers([]);
+    hirerSigRef.current?.clear();
+    lessorSigRef.current?.clear();
+    setIsClearing(false);
   };
 
   // ========================================
@@ -300,6 +301,16 @@ function App() {
   
   return (
     <div className="app">
+      {isClearing && (
+        <ConfirmDialog
+          title="Start a new agreement?"
+          message={'Hirer, vehicle, damage and signature details will be cleared.\n'
+            + 'Insurance, deposit and equipment details will be kept.'}
+          confirmLabel="Start new"
+          onConfirm={startNewAgreement}
+          onCancel={() => setIsClearing(false)}
+        />
+      )}
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
       {/* Header with Logout Button */}
       <header className="header">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
+import ConfirmDialog from './ConfirmDialog';
 import EndHireForm from './EndHireForm';
 import API_BASE_URL from '../config';
 import './History.css';
@@ -18,6 +19,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
   const [unavailable, setUnavailable] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [endingAgreement, setEndingAgreement] = useState(null);
+  const [confirming, setConfirming] = useState(null);
 
   // Lets a slow response from an earlier keystroke be discarded rather than
   // overwriting results from a later one.
@@ -159,11 +161,16 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
       return;
     }
 
-    if (!window.confirm(
-      `Reopen the agreement for ${agreement.hirer_name}?\n\n` +
-      'The end details and the End of Hire page will be removed from it.'
-    )) return;
+    setConfirming({
+      title: 'Reopen this agreement?',
+      message: `The end details and the End of Hire page will be removed from `
+        + `${agreement.hirer_name}'s agreement.`,
+      confirmLabel: 'Reopen',
+      onConfirm: () => reopen(agreement),
+    });
+  };
 
+  const reopen = async (agreement) => {
     setBusyId(agreement.id);
     try {
       const response = await fetch(
@@ -183,13 +190,18 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
   };
 
   const handleDelete = async (agreement) => {
-    const confirmed = window.confirm(
-      `Permanently delete the agreement for ${agreement.hirer_name}` +
-      `${agreement.vehicle_reg ? ` (${agreement.vehicle_reg})` : ''}?\n\n` +
-      'The saved PDF and the details on it will be erased. This cannot be undone.'
-    );
-    if (!confirmed) return;
+    setConfirming({
+      title: 'Delete this agreement?',
+      message: `The saved PDF for ${agreement.hirer_name}`
+        + `${agreement.vehicle_reg ? ` (${agreement.vehicle_reg})` : ''} and the `
+        + `details on it will be erased. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: () => remove(agreement),
+    });
+  };
 
+  const remove = async (agreement) => {
     setBusyId(agreement.id);
     try {
       const response = await fetch(
@@ -241,6 +253,14 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
 
   return (
     <div className="history-container">
+      {confirming && (
+        <ConfirmDialog
+          {...confirming}
+          onConfirm={() => { const run = confirming.onConfirm; setConfirming(null); run(); }}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+
       {endingAgreement && (
         <EndHireForm
           agreement={endingAgreement}
