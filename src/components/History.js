@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
+import EndHireForm from './EndHireForm';
 import API_BASE_URL from '../config';
 import './History.css';
 
@@ -16,6 +17,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [endingAgreement, setEndingAgreement] = useState(null);
 
   // Lets a slow response from an earlier keystroke be discarded rather than
   // overwriting results from a later one.
@@ -143,29 +145,36 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     }
   };
 
-  const handleToggleEnded = async (agreement) => {
-    const ending = !agreement.ended_at;
+  const applyEnded = (agreementId, endedAt) => {
+    setAgreements((prev) => prev.map((a) => (
+      a.id === agreementId ? { ...a, ended_at: endedAt } : a
+    )));
+  };
 
-    if (ending && !window.confirm(
-      `Mark the agreement for ${agreement.hirer_name} as ended?\n\n` +
-      'The date and time right now will be recorded against it. The signed ' +
-      'PDF is not changed.'
+  // Ending needs the condition and deposit figures, so it opens a form.
+  // Reopening only undoes it, so it does not.
+  const handleEndOrReopen = async (agreement) => {
+    if (!agreement.ended_at) {
+      setEndingAgreement(agreement);
+      return;
+    }
+
+    if (!window.confirm(
+      `Reopen the agreement for ${agreement.hirer_name}?\n\n` +
+      'The end details and the End of Hire page will be removed from it.'
     )) return;
 
     setBusyId(agreement.id);
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/agreements/${agreement.id}/end`,
-        { method: ending ? 'POST' : 'DELETE', headers: authHeaders() }
+        { method: 'DELETE', headers: authHeaders() }
       );
       if (response.status === 401) { sessionExpiredRef.current(); return; }
-      if (!response.ok) throw new Error('Could not update agreement');
+      if (!response.ok) throw new Error('Could not reopen agreement');
 
-      const data = await response.json();
-      setAgreements((prev) => prev.map((a) => (
-        a.id === agreement.id ? { ...a, ended_at: data.ended_at } : a
-      )));
-      toast.success(ending ? 'Agreement ended' : 'Agreement reopened');
+      applyEnded(agreement.id, null);
+      toast.success('Agreement reopened');
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -230,6 +239,19 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
 
   return (
     <div className="history-container">
+      {endingAgreement && (
+        <EndHireForm
+          agreement={endingAgreement}
+          authToken={authToken}
+          onCancel={() => setEndingAgreement(null)}
+          onSessionExpired={() => sessionExpiredRef.current()}
+          onEnded={(endedAt) => {
+            applyEnded(endingAgreement.id, endedAt);
+            setEndingAgreement(null);
+          }}
+        />
+      )}
+
       <div className="history-search">
         <input
           type="search"
@@ -303,7 +325,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
               <button
                 type="button"
                 className="history-btn"
-                onClick={() => handleToggleEnded(agreement)}
+                onClick={() => handleEndOrReopen(agreement)}
                 disabled={busyId === agreement.id}
               >
                 {agreement.ended_at ? 'Reopen' : 'End hire'}

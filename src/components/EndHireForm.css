@@ -1,0 +1,179 @@
+/* End hire form */
+
+.end-hire-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  padding: 0;
+}
+
+.end-hire-panel {
+  background: #f0f2f5;
+  width: 100%;
+  max-width: 560px;
+  max-height: 92vh;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: endHireIn 0.25s ease-out;
+}
+
+@keyframes endHireIn {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.end-hire-head {
+  background: linear-gradient(135deg, #1a472a 0%, #2d7a47 100%);
+  color: white;
+  padding: 18px 20px;
+  border-radius: 16px 16px 0 0;
+}
+
+.end-hire-head h2 {
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.end-hire-head p {
+  font-size: 14px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  overflow-wrap: anywhere;
+}
+
+.end-hire-body {
+  padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+.end-hire-body .form-group {
+  margin-bottom: 18px;
+}
+
+.end-hire-body label {
+  display: block;
+  color: #555;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.end-hire-body input,
+.end-hire-body textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px; /* stops iOS zooming the page on focus */
+  font-family: inherit;
+  background: white;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.end-hire-body input:focus,
+.end-hire-body textarea:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.end-hire-body input[readonly] {
+  background: #eceff1;
+  color: #37474f;
+  font-weight: 600;
+  border-color: #e0e0e0;
+}
+
+.end-hire-body textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+/* Held and withheld side by side: they are read together. */
+.end-hire-money {
+  display: flex;
+  gap: 12px;
+}
+
+.end-hire-money .form-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.end-hire-hint {
+  display: block;
+  color: #888;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.end-hire-note {
+  color: #666;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.end-hire-actions {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+}
+
+.end-hire-btn {
+  flex: 1;
+  padding: 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  color: #555;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.end-hire-btn.primary {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.end-hire-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.end-hire-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (min-width: 560px) {
+  .end-hire-backdrop {
+    align-items: center;
+    padding: 20px;
+  }
+
+  .end-hire-panel {
+    border-radius: 16px;
+  }
+
+  .end-hire-head {
+    border-radius: 16px 16px 0 0;
+  }
+}
