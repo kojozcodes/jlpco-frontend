@@ -528,6 +528,11 @@ function App() {
         />
       )}
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
+      {/* Header and tabs stick together as one block, so the tabs sit directly
+          under the header whatever height it ends up. Pinning the tabs at a
+          fixed offset broke whenever the title wrapped, as it does on a narrow
+          phone or with a larger text size, and the tabs slid under it. */}
+      <div className="top-bar">
       {/* Header with Logout Button */}
       <header className="header">
         <img src="/logo.png" alt="JL PCO" className="logo" />
@@ -541,19 +546,22 @@ function App() {
         </button>
       </header>
 
-      {/* Tabs */}
+      {/* Tabs. The two long labels have short forms for phones, where all
+          four at full length do not fit and History was pushed off screen. */}
       <div className="tabs">
         <button
           className={`tab ${activeTab === 'form' ? 'active' : ''}`}
           onClick={() => setActiveTab('form')}
         >
-          Form Details
+          <span className="tab-label-long">Form Details</span>
+          <span className="tab-label-short">Details</span>
         </button>
         <button
           className={`tab ${activeTab === 'damage' ? 'active' : ''}`}
           onClick={() => setActiveTab('damage')}
         >
-          Vehicle Condition
+          <span className="tab-label-long">Vehicle Condition</span>
+          <span className="tab-label-short">Condition</span>
         </button>
         <button
           className={`tab ${activeTab === 'signatures' ? 'active' : ''}`}
@@ -567,6 +575,7 @@ function App() {
         >
           History
         </button>
+      </div>
       </div>
 
       {/* Main Content */}

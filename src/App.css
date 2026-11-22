@@ -34,6 +34,16 @@ body {
   display: flex;
   align-items: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  /* Above the tabs within the top bar, so its shadow still falls on them. */
+  position: relative;
+  z-index: 1;
+}
+
+/* Header and tabs stick as one block. The tabs used to stick on their own at
+   top: 80px, the header's height when its title fits on one line. On a narrow
+   phone or with a larger text size the title wraps, the header grows, and the
+   tabs slid underneath it once the page was scrolled. */
+.top-bar {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -57,11 +67,14 @@ body {
   display: flex;
   background-color: white;
   border-bottom: 1px solid #e0e0e0;
-  position: sticky;
-  top: 80px;
-  z-index: 99;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Short forms of the longer labels, swapped in on phones (see the 480px
+   block below the mobile optimizations). */
+.tab-label-short {
+  display: none;
 }
 
 .tab {
@@ -298,6 +311,31 @@ body {
     padding: 12px 20px;
     font-size: 15px;
     min-width: 100px;
+  }
+}
+
+/* Four tabs at their full labels and the 120px minimum need 480px, which no
+   phone has: History sat completely off screen at 360px, the most common
+   Android width, and mostly off it on every iPhone. Below that, the long labels
+   are swapped for short ones and each tab takes the width its label needs, so
+   all four fit down to 320px. The row still scrolls as a last resort, for a
+   very large text size.
+
+   Kept after the base .tab rule and the 768px block on purpose: all three
+   apply on a phone at the same specificity, so the last one wins. */
+@media (max-width: 480px) {
+  .tab {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 14px 6px;
+  }
+
+  .tab-label-long {
+    display: none;
+  }
+
+  .tab-label-short {
+    display: inline;
   }
 }
 
