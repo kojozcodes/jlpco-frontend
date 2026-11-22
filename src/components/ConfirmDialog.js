@@ -10,6 +10,11 @@ import './ConfirmDialog.css';
  *
  * Rendered only when there is something to confirm, so callers hold the
  * question in state and clear it when answered.
+ *
+ * Tapping the backdrop or pressing Escape counts as cancelling, which suits a
+ * question whose cancel leaves everything as it was. Where cancelling throws
+ * something away, pass dismissible={false} so only the buttons answer: a tap
+ * that misses the panel on a phone should never be what decides it.
  */
 const ConfirmDialog = ({
   title,
@@ -17,6 +22,7 @@ const ConfirmDialog = ({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   danger = false,
+  dismissible = true,
   onConfirm,
   onCancel,
 }) => {
@@ -24,16 +30,17 @@ const ConfirmDialog = ({
 
   useEffect(() => {
     confirmRef.current?.focus();
+    if (!dismissible) return undefined;
 
     const onKeyDown = (e) => {
       if (e.key === 'Escape') onCancel();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onCancel]);
+  }, [onCancel, dismissible]);
 
   return (
-    <div className="confirm-backdrop" onClick={onCancel}>
+    <div className="confirm-backdrop" onClick={dismissible ? onCancel : undefined}>
       <div
         className="confirm-panel"
         role="alertdialog"

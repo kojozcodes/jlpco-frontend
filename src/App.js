@@ -110,6 +110,79 @@ const saveDetails = (values) => {
 
 const newAgreementForm = () => ({ ...EMPTY_FORM, ...loadSavedDetails() });
 
+// The agreement currently being filled in, kept so it survives the tab being
+// lost: iOS discards background tabs when memory runs short, so switching to
+// WhatsApp mid-handover could come back to an empty form, and with no stored
+// session a reload means logging in again on top of that.
+//
+// This holds hirer details, which the saved details above deliberately never
+// do. The difference is that this never outlives the agreement it belongs to.
+// It is cleared once that agreement is produced, offered back rather than
+// silently restored, and dropped after DRAFT_MAX_AGE_MS. What must not happen
+// is one hirer's details quietly reappearing as the start of the next agreement.
+//
+// Signatures are left out, as they are from the archive. A detached copy of a
+// signature has no use, and they take seconds to redo.
+const DRAFT_KEY = 'jlpco_draft';
+
+// Long enough to cover a discarded tab or a phone that died mid-handover,
+// short enough that an abandoned agreement is not offered back days later.
+const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+const loadDraft = () => {
+  try {
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if (!draft || typeof draft.savedAt !== 'number' || !draft.formData) {
+      return null;
+    }
+    if (Date.now() - draft.savedAt > DRAFT_MAX_AGE_MS) {
+      localStorage.removeItem(DRAFT_KEY);
+      return null;
+    }
+    return draft;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Fail quietly, like the saved details: running out of storage or being in
+// private browsing should cost the safety net, never the agreement.
+const saveDraft = (formData, damageMarkers) => {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      formData,
+      damageMarkers,
+    }));
+  } catch (e) {
+    // Nothing to do - the form on screen is unaffected.
+  }
+};
+
+const clearDraft = () => {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch (e) {
+    // Nothing to do.
+  }
+};
+
+// Whether anything has actually been done on this agreement. A form holding
+// nothing but the details carried over from the last one has had no work put
+// into it, and offering that back would only be noise.
+const draftHasWork = (formData, damageMarkers) => (
+  (Array.isArray(damageMarkers) && damageMarkers.length > 0)
+  || Object.entries(formData || {}).some(([field, value]) => (
+    !REMEMBERED_FIELDS.includes(field)
+    && typeof value === 'string'
+    && value.trim() !== ''
+  ))
+);
+
+// Identifies one exact state of the form, to recognise an agreement that has
+// already been produced.
+const snapshotOf = (formData, damageMarkers) => JSON.stringify([formData, damageMarkers]);
+
 function App() {
   // ========================================
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY RETURNS
@@ -135,6 +208,13 @@ function App() {
   const [lessorSignature, setLessorSignature] = useState(null);
   const [pendingUnsigned, setPendingUnsigned] = useState(false);
 
+  // An unfinished agreement found in storage at sign-in, waiting for the
+  // operator to say whether to carry on with it.
+  const [pendingDraft, setPendingDraft] = useState(null);
+
+  // The exact form that was last turned into an agreement. A draft of that is
+  // a copy of finished work, so it is cleared rather than kept.
+  const [producedSnapshot, setProducedSnapshot] = useState(null);
 
   const hirerSigRef = useRef(null);
   const lessorSigRef = useRef(null);
@@ -146,6 +226,27 @@ function App() {
     setIsCheckingAuth(false);
   }, []);
 
+  // Keep the draft in step with the form. Debounced, as localStorage writes
+  // block the page and this would otherwise run on every keystroke.
+  //
+  // Paused until signed in and while a found draft is waiting for an answer.
+  // Both are moments when the form on screen is a fresh one, and saving it
+  // would overwrite the very draft that is about to be offered back.
+  useEffect(() => {
+    if (!isAuthenticated || pendingDraft) return undefined;
+
+    const timer = setTimeout(() => {
+      const alreadyProduced =
+        snapshotOf(formData, damageMarkers) === producedSnapshot;
+      if (!alreadyProduced && draftHasWork(formData, damageMarkers)) {
+        saveDraft(formData, damageMarkers);
+      } else {
+        clearDraft();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData, damageMarkers, isAuthenticated, pendingDraft, producedSnapshot]);
+
   // ========================================
   // EVENT HANDLERS
   // ========================================
@@ -153,6 +254,18 @@ function App() {
   const handleLoginSuccess = (token) => {
     setAuthToken(token);
     setIsAuthenticated(true);
+
+    // Looked for only once signed in, since it holds a hirer's details.
+    //
+    // Skipped when the form already has work on it. That happens when a
+    // session expires mid-agreement: the form never left the screen, so it is
+    // the newer copy, and offering the draft back would only offer itself.
+    if (!draftHasWork(formData, damageMarkers)) {
+      const draft = loadDraft();
+      if (draft && draftHasWork(draft.formData, draft.damageMarkers)) {
+        setPendingDraft(draft);
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -186,6 +299,10 @@ function App() {
 
   const generatePDF = async () => {
     setIsGenerating(true);
+
+    // Taken now, not on success. Anything typed while the request is in
+    // flight is not on this agreement, so it must not count as produced.
+    const sentSnapshot = snapshotOf(formData, damageMarkers);
 
     try {
       const pdfData = {
@@ -227,6 +344,12 @@ function App() {
       // Only once the agreement has actually been produced - a failed attempt
       // should not change what the next one starts with.
       saveDetails(formData);
+
+      // Produced and archived, so the draft has done its job. Recording what
+      // was sent lets the autosave tell this agreement apart from any edit
+      // made after it, which is new work and is saved again as normal.
+      setProducedSnapshot(sentSnapshot);
+      clearDraft();
 
       toast.success('PDF generated successfully!');
     } catch (error) {
@@ -308,7 +431,41 @@ function App() {
     setFormData(newAgreementForm());
     setDamageMarkers([]);
     clearSignatures();
+    clearDraft();
     setIsClearing(false);
+  };
+
+  // Enough to recognise the draft by, so nobody is guessing whose details they
+  // are about to bring back onto the screen.
+  const draftSummary = (draft) => {
+    const form = draft.formData || {};
+    const name = (form.full_name || '').trim();
+    const reg = (form.vehicle_reg || '').trim();
+    const who = name && reg ? `${name} (${reg})` : name || reg;
+
+    const savedAt = new Date(draft.savedAt);
+    const zone = { timeZone: 'Europe/London' };
+    const day = savedAt.toLocaleDateString('en-GB', { ...zone, day: 'numeric', month: 'short' });
+    const time = savedAt.toLocaleTimeString('en-GB', { ...zone, hour: '2-digit', minute: '2-digit' });
+
+    return `You were part way through an agreement${who ? ` for ${who}` : ''}, `
+      + `last changed ${day} at ${time}.\n`
+      + 'Its details can be brought back. The signatures will need doing again.';
+  };
+
+  const restoreDraft = () => {
+    const draft = pendingDraft;
+    setPendingDraft(null);
+    if (!draft) return;
+    setFormData({ ...EMPTY_FORM, ...draft.formData });
+    setDamageMarkers(Array.isArray(draft.damageMarkers) ? draft.damageMarkers : []);
+    clearSignatures();
+    setActiveTab('form');
+  };
+
+  const discardDraft = () => {
+    setPendingDraft(null);
+    clearDraft();
   };
 
   // ========================================
@@ -346,6 +503,17 @@ function App() {
           confirmLabel="Start new"
           onConfirm={startNewAgreement}
           onCancel={() => setIsClearing(false)}
+        />
+      )}
+      {pendingDraft && (
+        <ConfirmDialog
+          title="Carry on where you left off?"
+          message={draftSummary(pendingDraft)}
+          confirmLabel="Carry on"
+          cancelLabel="Start fresh"
+          dismissible={false}
+          onConfirm={restoreDraft}
+          onCancel={discardDraft}
         />
       )}
       {pendingUnsigned && (
