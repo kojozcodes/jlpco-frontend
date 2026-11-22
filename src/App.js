@@ -127,7 +127,15 @@ function App() {
   const [damageMarkers, setDamageMarkers] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  
+
+  // Each is { strokes, dataUrl } or null. Kept here rather than inside the
+  // pads themselves, which are unmounted the moment the operator leaves the
+  // Signatures tab to check a field.
+  const [hirerSignature, setHirerSignature] = useState(null);
+  const [lessorSignature, setLessorSignature] = useState(null);
+  const [pendingUnsigned, setPendingUnsigned] = useState(false);
+
+
   const hirerSigRef = useRef(null);
   const lessorSigRef = useRef(null);
 
@@ -176,24 +184,15 @@ function App() {
     return errors;
   };
 
-  const handleGeneratePDF = async () => {
-    const errors = validateForm();
-    if (errors.length > 0) {
-      toast.error('Please fix the following errors:\n\n• ' + errors.join('\n• '));
-      return;
-    }
-
+  const generatePDF = async () => {
     setIsGenerating(true);
 
     try {
-      const hirerSigData = hirerSigRef.current?.toDataURL();
-      const lessorSigData = lessorSigRef.current?.toDataURL();
-
       const pdfData = {
         ...formData,
         damage_markers: damageMarkers,
-        hirer_signature: hirerSigData,
-        lessor_signature: lessorSigData,
+        hirer_signature: hirerSignature?.dataUrl || null,
+        lessor_signature: lessorSignature?.dataUrl || null,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/generate-pdf`, {
@@ -238,9 +237,49 @@ function App() {
     }
   };
 
+  // Which signature is still missing, as something worth reading.
+  const unsignedDescription = () => {
+    if (!hirerSignature && !lessorSignature) {
+      return 'Neither signature has been added yet.';
+    }
+    return !hirerSignature
+      ? 'The hirer has not signed yet.'
+      : 'The lessor has not signed yet.';
+  };
+
+  const handleGeneratePDF = () => {
+    const errors = validateForm();
+    if (errors.length > 0) {
+      toast.error('Please fix the following errors:\n\n• ' + errors.join('\n• '));
+      return;
+    }
+
+    // An unsigned agreement is allowed: they are sometimes printed and signed
+    // by hand. It should be a decision though, rather than something noticed
+    // after the hirer has driven off.
+    if (!hirerSignature || !lessorSignature) {
+      setPendingUnsigned(true);
+      return;
+    }
+
+    generatePDF();
+  };
+
   const handleSessionExpired = () => {
     toast.error('Session expired. Please login again.');
     handleLogout();
+  };
+
+  // Both the state and the pads. The state is the signature now and the pads
+  // are only displaying it, so whichever of the two is forgotten is the one
+  // that leaves the previous hirer's signature attached to the next
+  // agreement. The pads may not be mounted, which is exactly why the state
+  // cannot be left to them.
+  const clearSignatures = () => {
+    setHirerSignature(null);
+    setLessorSignature(null);
+    hirerSigRef.current?.clear();
+    lessorSigRef.current?.clear();
   };
 
   // Start a fresh agreement from a past one. Everything specific to the
@@ -255,8 +294,7 @@ function App() {
     } = previous;
     setFormData({ ...EMPTY_FORM, ...details });
     setDamageMarkers([]);
-    hirerSigRef.current?.clear();
-    lessorSigRef.current?.clear();
+    clearSignatures();
     setActiveTab('form');
   };
 
@@ -269,8 +307,7 @@ function App() {
   const startNewAgreement = () => {
     setFormData(newAgreementForm());
     setDamageMarkers([]);
-    hirerSigRef.current?.clear();
-    lessorSigRef.current?.clear();
+    clearSignatures();
     setIsClearing(false);
   };
 
@@ -309,6 +346,17 @@ function App() {
           confirmLabel="Start new"
           onConfirm={startNewAgreement}
           onCancel={() => setIsClearing(false)}
+        />
+      )}
+      {pendingUnsigned && (
+        <ConfirmDialog
+          title="Generate without a signature?"
+          message={`${unsignedDescription()} The agreement will print with `
+            + 'blank signature lines to be signed by hand.'}
+          confirmLabel="Generate anyway"
+          cancelLabel="Go and sign"
+          onConfirm={() => { setPendingUnsigned(false); generatePDF(); }}
+          onCancel={() => { setPendingUnsigned(false); setActiveTab('signatures'); }}
         />
       )}
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
@@ -759,7 +807,11 @@ function App() {
           <div className="signatures-container">
             <div className="card">
               <h2 className="card-title">Hirer Signature</h2>
-              <SignatureCanvas ref={hirerSigRef} />
+              <SignatureCanvas
+                ref={hirerSigRef}
+                value={hirerSignature}
+                onChange={setHirerSignature}
+              />
               <div className="form-group" style={{ marginTop: '15px' }}>
                 <label>Date</label>
                 <input
@@ -774,7 +826,11 @@ function App() {
 
             <div className="card">
               <h2 className="card-title">Lessor Signature (JL PCO Limited)</h2>
-              <SignatureCanvas ref={lessorSigRef} />
+              <SignatureCanvas
+                ref={lessorSigRef}
+                value={lessorSignature}
+                onChange={setLessorSignature}
+              />
               <div className="form-group" style={{ marginTop: '15px' }}>
                 <label>Date</label>
                 <input

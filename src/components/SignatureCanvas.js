@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef, useState } from 'react';
 import SignaturePad from 'signature_pad';
 import './SignatureCanvas.css';
 
@@ -8,12 +8,32 @@ import './SignatureCanvas.css';
  * - Prevents page scroll during signature drawing
  * - Works with both touch and mouse
  * - Full freedom of movement (horizontal AND vertical)
+ *
+ * The signature itself belongs to the parent, passed in as value and reported
+ * back through onChange. A pad that owned its own signature lost it whenever
+ * this component was unmounted, which is what switching tabs does, so going
+ * back to correct one field silently cleared both signatures.
+ *
+ * Both props are optional: a caller that keeps this mounted for as long as it
+ * needs the signature can read it off the ref instead.
  */
-const SignatureCanvas = forwardRef((props, ref) => {
+const SignatureCanvas = forwardRef(({ value, onChange }, ref) => {
   const canvasRef = useRef(null);
   const signaturePadRef = useRef(null);
   const containerRef = useRef(null);
   const [isEmpty, setIsEmpty] = useState(true);
+
+  // Held in a ref rather than used directly, so a parent that redefines the
+  // handler on each render does not change what the effect below depends on.
+  // That effect builds the pad, and rebuilding it mid-signature would wipe it.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Read once, on mount. value changes with every stroke, so reading it in the
+  // effect would make the pad rebuild itself as the operator signs.
+  const initialValue = useRef(value);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,9 +69,29 @@ const SignatureCanvas = forwardRef((props, ref) => {
       velocityFilterWeight: 0.7,
     });
 
+    // A signature drawn before this component was last unmounted. Replayed
+    // from the stored strokes rather than the stored PNG, so it is redrawn at
+    // full fidelity instead of being resampled from a bitmap. Like the resize
+    // above, the strokes carry their original coordinates, so a signature
+    // survives a tab switch rather than a change of orientation.
+    const saved = initialValue.current;
+    if (saved?.strokes?.length) {
+      signaturePadRef.current.fromData(saved.strokes);
+      setIsEmpty(false);
+    }
+
     // Track when signature changes
     signaturePadRef.current.addEventListener('endStroke', () => {
-      setIsEmpty(signaturePadRef.current.isEmpty());
+      const pad = signaturePadRef.current;
+      const empty = pad.isEmpty();
+      setIsEmpty(empty);
+      // Captured in both forms while the pad is still alive: the strokes to
+      // redraw it after a remount, and the PNG because that is what gets sent
+      // and this component may be gone by the time Generate is pressed.
+      onChangeRef.current?.(empty ? null : {
+        strokes: pad.toData(),
+        dataUrl: pad.toDataURL(),
+      });
     });
 
     // CRITICAL FIX: Prevent scroll during signature drawing
@@ -85,12 +125,18 @@ const SignatureCanvas = forwardRef((props, ref) => {
     };
   }, []);
 
+  // Clearing has to be reported too. The parent holds the signature now, so a
+  // pad cleared on screen while the parent still held the old one would put
+  // the previous hirer's signature on this agreement.
+  const clearPad = useCallback(() => {
+    signaturePadRef.current?.clear();
+    setIsEmpty(true);
+    onChangeRef.current?.(null);
+  }, []);
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    clear: () => {
-      signaturePadRef.current?.clear();
-      setIsEmpty(true);
-    },
+    clear: clearPad,
     isEmpty: () => {
       return signaturePadRef.current?.isEmpty() ?? true;
     },
@@ -106,11 +152,6 @@ const SignatureCanvas = forwardRef((props, ref) => {
     },
   }));
 
-  const handleClear = () => {
-    signaturePadRef.current?.clear();
-    setIsEmpty(true);
-  };
-
   return (
     <div className="signature-canvas-container" ref={containerRef}>
       <canvas
@@ -125,7 +166,7 @@ const SignatureCanvas = forwardRef((props, ref) => {
       <button
         type="button"
         className="signature-clear-btn"
-        onClick={handleClear}
+        onClick={clearPad}
       >
         Clear Signature
       </button>
