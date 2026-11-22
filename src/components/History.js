@@ -143,6 +143,36 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     }
   };
 
+  const handleToggleEnded = async (agreement) => {
+    const ending = !agreement.ended_at;
+
+    if (ending && !window.confirm(
+      `Mark the agreement for ${agreement.hirer_name} as ended?\n\n` +
+      'The date and time right now will be recorded against it. The signed ' +
+      'PDF is not changed.'
+    )) return;
+
+    setBusyId(agreement.id);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/agreements/${agreement.id}/end`,
+        { method: ending ? 'POST' : 'DELETE', headers: authHeaders() }
+      );
+      if (response.status === 401) { sessionExpiredRef.current(); return; }
+      if (!response.ok) throw new Error('Could not update agreement');
+
+      const data = await response.json();
+      setAgreements((prev) => prev.map((a) => (
+        a.id === agreement.id ? { ...a, ended_at: data.ended_at } : a
+      )));
+      toast.success(ending ? 'Agreement ended' : 'Agreement reopened');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleDelete = async (agreement) => {
     const confirmed = window.confirm(
       `Permanently delete the agreement for ${agreement.hirer_name}` +
@@ -167,6 +197,14 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const formatEnded = (iso) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
   };
 
   const formatDate = (iso) => {
@@ -219,7 +257,10 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
 
       <div className="history-list">
         {agreements.map((agreement) => (
-          <div className="history-card" key={agreement.id}>
+          <div
+            className={`history-card${agreement.ended_at ? ' ended' : ''}`}
+            key={agreement.id}
+          >
             <div className="history-card-head">
               <span className="history-name">
                 {agreement.hirer_name || 'Unnamed hirer'}
@@ -235,6 +276,12 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
               )}
               {agreement.make_model && <span>{agreement.make_model}</span>}
             </div>
+
+            {agreement.ended_at && (
+              <div className="history-ended">
+                Ended {formatEnded(agreement.ended_at)}
+              </div>
+            )}
 
             <div className="history-actions">
               <button
@@ -252,6 +299,14 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
                 disabled={busyId === agreement.id}
               >
                 New hire
+              </button>
+              <button
+                type="button"
+                className="history-btn"
+                onClick={() => handleToggleEnded(agreement)}
+                disabled={busyId === agreement.id}
+              >
+                {agreement.ended_at ? 'Reopen' : 'End hire'}
               </button>
               <button
                 type="button"

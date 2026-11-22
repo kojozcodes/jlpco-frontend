@@ -42,6 +42,33 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.history-card.ended {
+  background: #fafafa;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* A finished hire stays legible but reads as settled rather than current. */
+.history-card.ended .history-name,
+.history-card.ended .history-meta {
+  color: #888;
+}
+
+.history-card.ended .history-reg {
+  background: #eeeeee;
+  color: #666;
+}
+
+.history-ended {
+  display: inline-block;
+  background: #eceff1;
+  color: #455a64;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
 .history-card-head {
   display: flex;
   justify-content: space-between;
@@ -157,5 +184,14 @@
 
   .history-btn {
     padding: 11px 10px;
+  }
+}
+
+/* Four actions wrap 3 + 1 on a narrow phone, which reads as a mistake rather
+   than a layout. Force an even 2 x 2 instead. */
+@media (max-width: 480px) {
+  .history-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
   }
 }
