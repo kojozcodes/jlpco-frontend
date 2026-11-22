@@ -414,7 +414,11 @@ function App() {
     setIsAuthenticated(false);
   };
 
-  // Handle input changes WITHOUT dismissing keyboard
+  // The keyboard stays up because these inputs are rendered in place and keep
+  // the same element from one keystroke to the next, so focus is never lost.
+  // An earlier version also called focus() on every keystroke to the same
+  // end; it could not have helped (were the element ever replaced, focusing
+  // the old one would do nothing) and has been dropped.
   const handleInputChange = (e) => {
     const { name } = e.target;
     let { value } = e.target;
@@ -434,7 +438,6 @@ function App() {
       ...prev,
       [name]: value
     }));
-    e.target.focus();
   };
 
   // For controls that are not text inputs, such as the Yes and No buttons.

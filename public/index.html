@@ -6,8 +6,15 @@
     <!-- viewport-fit=cover lets the page reach the screen's edges and makes iOS
          report the safe-area insets to CSS; without it every env(safe-area-*)
          is zero. App.css keeps the header, tabs, form and footer clear of the
-         status bar, notch and home bar. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+         status bar, notch and home bar.
+
+         Pinch zoom is allowed, for reading a licence number or a small print
+         line. What zoom-blocking used to be for is covered more narrowly:
+         every field is at least 16px, so iOS does not zoom in when one is
+         tapped; the signature pads take every gesture themselves
+         (touch-action: none); and the car diagram counts only a one-finger
+         tap as a marker, so a pinch or a scroll across it adds nothing. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1a472a" />
     <meta name="description" content="JL PCO Hire Agreement Generator - Mobile App" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
