@@ -1,0 +1,47 @@
+/* Sized and bordered like the text inputs it replaces, so the form keeps
+   one rhythm. Each half is a full-height tap target. */
+.yes-no {
+  display: flex;
+  gap: 10px;
+}
+
+.yes-no-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  color: #555;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+}
+
+.yes-no-option.selected {
+  border-color: #2e7d32;
+  background: #f1f8f4;
+  color: #1b5e20;
+  font-weight: 600;
+}
+
+.yes-no-option:active {
+  background: #e8f5e9;
+}
+
+.yes-no-option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.25);
+}
+
+.yes-no-tick {
+  font-size: 15px;
+  line-height: 1;
+}

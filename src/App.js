@@ -5,6 +5,7 @@ import DamageMarker from './components/DamageMarker';
 import Login from './components/Login';
 import History from './components/History';
 import ConfirmDialog from './components/ConfirmDialog';
+import YesNoToggle from './components/YesNoToggle';
 import toast, { Toaster } from 'react-hot-toast';
 import API_BASE_URL from './config';
 
@@ -108,7 +109,42 @@ const saveDetails = (values) => {
   }
 };
 
-const newAgreementForm = () => ({ ...EMPTY_FORM, ...loadSavedDetails() });
+// Answered with Yes and No buttons rather than typed.
+const YES_NO_FIELDS = [
+  'wheel_locking_nut',
+  'immobiliser_installed',
+  'dashcam_installed',
+  'puncture_repair_kit',
+];
+
+// Identifiers printed in capitals on official documents, upper-cased as typed.
+const UPPERCASE_FIELDS = ['vehicle_reg', 'ni_number', 'licence_number', 'vin_number'];
+
+// An answer typed before these fields became buttons, read as the button it
+// meant. Anything that is not plainly a yes or no is left exactly as it was,
+// for the toggle to show, rather than guessed at.
+const asYesNo = (value) => {
+  const answer = String(value ?? '').trim().toLowerCase();
+  if (answer === 'yes' || answer === 'y') return 'Yes';
+  if (answer === 'no' || answer === 'n') return 'No';
+  return value ?? '';
+};
+
+// Applied wherever a whole form arrives at once, from the saved details, a
+// past agreement or a draft, so values entered before these rules existed are
+// brought into line and the screen shows what the agreement will print.
+const tidyForm = (form) => {
+  const tidy = { ...form };
+  YES_NO_FIELDS.forEach((field) => {
+    tidy[field] = asYesNo(tidy[field]);
+  });
+  UPPERCASE_FIELDS.forEach((field) => {
+    if (typeof tidy[field] === 'string') tidy[field] = tidy[field].toUpperCase();
+  });
+  return tidy;
+};
+
+const newAgreementForm = () => tidyForm({ ...EMPTY_FORM, ...loadSavedDetails() });
 
 // The agreement currently being filled in, kept so it survives the tab being
 // lost: iOS discards background tabs when memory runs short, so switching to
@@ -380,12 +416,30 @@ function App() {
 
   // Handle input changes WITHOUT dismissing keyboard
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let { value } = e.target;
+
+    if (UPPERCASE_FIELDS.includes(name) && value !== value.toUpperCase()) {
+      // Written back to the field before React sees it, and the caret put back
+      // where it was. Left to React, a value that differs from what is in the
+      // field moves the caret to the end, so correcting one character in the
+      // middle of a registration would send the next keystroke to the end.
+      const { selectionStart, selectionEnd } = e.target;
+      value = value.toUpperCase();
+      e.target.value = value;
+      e.target.setSelectionRange(selectionStart, selectionEnd);
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     e.target.focus();
+  };
+
+  // For controls that are not text inputs, such as the Yes and No buttons.
+  const setField = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleKeyDown = (e) => {
@@ -561,7 +615,7 @@ function App() {
       hire_start, deposit_date, payment_start_date,
       ...details
     } = previous;
-    setFormData({ ...EMPTY_FORM, ...details });
+    setFormData(tidyForm({ ...EMPTY_FORM, ...details }));
     setDamageMarkers([]);
     clearSignatures();
     setActiveTab('form');
@@ -603,7 +657,7 @@ function App() {
     const draft = pendingDraft;
     setPendingDraft(null);
     if (!draft) return;
-    setFormData({ ...EMPTY_FORM, ...draft.formData });
+    setFormData(tidyForm({ ...EMPTY_FORM, ...draft.formData }));
     setDamageMarkers(Array.isArray(draft.damageMarkers) ? draft.damageMarkers : []);
     clearSignatures();
     setActiveTab('form');
@@ -812,6 +866,9 @@ function App() {
                 <input
                   type="text"
                   name="licence_number"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={formData.licence_number}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
@@ -838,6 +895,9 @@ function App() {
                 <input
                   type="text"
                   name="ni_number"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={formData.ni_number}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
@@ -856,6 +916,9 @@ function App() {
                 <input
                   type="text"
                   name="vehicle_reg"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={formData.vehicle_reg}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
@@ -882,6 +945,9 @@ function App() {
                 <input
                   type="text"
                   name="vin_number"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={formData.vin_number}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
@@ -1032,41 +1098,32 @@ function App() {
               <h2 className="card-title">Vehicle Equipment</h2>
               
               <div className="form-group">
-                <label>Wheel Locking Nut</label>
-                <input
-                  type="text"
+                <label id="wheel_locking_nut-label">Wheel Locking Nut</label>
+                <YesNoToggle
                   name="wheel_locking_nut"
+                  labelId="wheel_locking_nut-label"
                   value={formData.wheel_locking_nut}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Yes/No"
-                  autoComplete="off"
+                  onChange={setField}
                 />
               </div>
 
               <div className="form-group">
-                <label>Immobiliser Installed</label>
-                <input
-                  type="text"
+                <label id="immobiliser_installed-label">Immobiliser Installed</label>
+                <YesNoToggle
                   name="immobiliser_installed"
+                  labelId="immobiliser_installed-label"
                   value={formData.immobiliser_installed}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Yes/No"
-                  autoComplete="off"
+                  onChange={setField}
                 />
               </div>
 
               <div className="form-group">
-                <label>Dashcam Installed</label>
-                <input
-                  type="text"
+                <label id="dashcam_installed-label">Dashcam Installed</label>
+                <YesNoToggle
                   name="dashcam_installed"
+                  labelId="dashcam_installed-label"
                   value={formData.dashcam_installed}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Yes/No"
-                  autoComplete="off"
+                  onChange={setField}
                 />
               </div>
 
@@ -1084,15 +1141,12 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Puncture Repair Kit</label>
-                <input
-                  type="text"
+                <label id="puncture_repair_kit-label">Puncture Repair Kit</label>
+                <YesNoToggle
                   name="puncture_repair_kit"
+                  labelId="puncture_repair_kit-label"
                   value={formData.puncture_repair_kit}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Yes/No"
-                  autoComplete="off"
+                  onChange={setField}
                 />
               </div>
             </div>
