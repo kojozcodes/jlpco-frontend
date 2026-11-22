@@ -21,9 +21,19 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
   const [endingAgreement, setEndingAgreement] = useState(null);
   const [confirming, setConfirming] = useState(null);
 
+  // Whether older agreements exist beyond those on screen, and whether they
+  // are being fetched. The server sends them a page at a time, newest first.
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Lets a slow response from an earlier keystroke be discarded rather than
   // overwriting results from a later one.
   const requestRef = useRef(0);
+
+  // The search the list on screen was loaded for. The box can already hold
+  // something newer that has not been searched yet, and the next page has to
+  // continue the list being shown, not start that one.
+  const loadedTermRef = useRef('');
 
   // Held in a ref rather than used directly. A parent that redefines this
   // handler on each render would otherwise change the identity of load, which
@@ -38,14 +48,24 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     Authorization: `Bearer ${authToken}`,
   }), [authToken]);
 
+  // One page. After the first, a page is asked for by position, as the ones
+  // following the oldest agreement on screen, rather than by how many to skip:
+  // an agreement deleted here, or added from another device, would otherwise
+  // shift the count and show one twice or miss one out.
+  const fetchPage = useCallback((term, after) => {
+    const params = new URLSearchParams({ search: term });
+    if (after) {
+      params.set('before', after.created_at);
+      params.set('before_id', after.id);
+    }
+    return fetch(`${API_BASE_URL}/api/agreements?${params}`, { headers: authHeaders() });
+  }, [authHeaders]);
+
   const load = useCallback(async (term) => {
     const request = ++requestRef.current;
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/agreements?search=${encodeURIComponent(term)}`,
-        { headers: authHeaders() }
-      );
+      const response = await fetchPage(term);
 
       if (response.status === 401) { sessionExpiredRef.current(); return; }
       if (response.status === 503) {
@@ -57,6 +77,8 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
       const data = await response.json();
       if (request === requestRef.current) {
         setAgreements(data.agreements || []);
+        setHasMore(Boolean(data.has_more));
+        loadedTermRef.current = term;
         setUnavailable(false);
       }
     } catch (error) {
@@ -64,7 +86,41 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     } finally {
       if (request === requestRef.current) setIsLoading(false);
     }
-  }, [authHeaders]);
+  }, [fetchPage]);
+
+  // The next page of the list on screen, added to the end of it.
+  const loadMore = async () => {
+    if (isLoadingMore) return;
+    const last = agreements[agreements.length - 1];
+    if (!last) {
+      // Everything shown has been deleted, so there is nothing to continue
+      // from. Starting the list again brings in what was behind it.
+      load(loadedTermRef.current);
+      return;
+    }
+
+    // Not a new request number: a search started meanwhile replaces the list,
+    // and this page belongs to the old one, so it is dropped when it arrives.
+    const request = requestRef.current;
+    setIsLoadingMore(true);
+    try {
+      const response = await fetchPage(loadedTermRef.current, last);
+      if (response.status === 401) { sessionExpiredRef.current(); return; }
+      if (!response.ok) throw new Error('Could not load older agreements');
+
+      const data = await response.json();
+      if (request !== requestRef.current) return;
+      setAgreements((prev) => {
+        const shown = new Set(prev.map((a) => a.id));
+        return [...prev, ...(data.agreements || []).filter((a) => !shown.has(a.id))];
+      });
+      setHasMore(Boolean(data.has_more));
+    } catch (error) {
+      if (request === requestRef.current) toast.error(error.message);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Debounced so typing a registration does not fire a request per character.
   useEffect(() => {
@@ -364,6 +420,17 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
           </div>
         ))}
       </div>
+
+      {hasMore && (
+        <button
+          type="button"
+          className="history-more"
+          onClick={loadMore}
+          disabled={isLoadingMore}
+        >
+          {isLoadingMore ? 'Loading…' : 'Show older agreements'}
+        </button>
+      )}
     </div>
   );
 };

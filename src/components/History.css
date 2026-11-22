@@ -195,3 +195,33 @@
     min-width: 0;
   }
 }
+
+/* After the last card, when older agreements exist beyond those on screen.
+   Full width and as tall as a field, so it is easy to hit at the end of a
+   long scroll. */
+.history-more {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 2px solid #c8e6c9;
+  border-radius: 10px;
+  background: white;
+  color: #2e7d32;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.history-more:active:not(:disabled) {
+  background: #f1f8f4;
+}
+
+.history-more:disabled {
+  color: #777;
+  border-color: #e0e0e0;
+  cursor: default;
+}
