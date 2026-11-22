@@ -724,7 +724,10 @@ function App() {
           onCancel={dismissWarnings}
         />
       )}
-      <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
+      {/* Started below the status bar, which the page now extends behind on an
+          iPhone running the app from the home screen. 16px is the library's own
+          default; elsewhere the inset is zero and nothing moves. */}
+      <Toaster position="top-center" containerStyle={{ top: 'calc(16px + env(safe-area-inset-top))' }} toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff', borderRadius: '8px' }, success: { duration: 3000, iconTheme: { primary: '#52C41A', secondary: '#fff' } }, error: { duration: 4000 } }} />
       {/* Header and tabs stick together as one block, so the tabs sit directly
           under the header whatever height it ends up. Pinning the tabs at a
           fixed offset broke whenever the title wrapped, as it does on a narrow

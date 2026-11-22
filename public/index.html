@@ -3,7 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <!-- viewport-fit=cover lets the page reach the screen's edges and makes iOS
+         report the safe-area insets to CSS; without it every env(safe-area-*)
+         is zero. App.css keeps the header, tabs, form and footer clear of the
+         status bar, notch and home bar. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#1a472a" />
     <meta name="description" content="JL PCO Hire Agreement Generator - Mobile App" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
