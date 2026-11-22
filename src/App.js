@@ -3,7 +3,9 @@ import './App.css';
 import SignatureCanvas from './components/SignatureCanvas';
 import DamageMarker from './components/DamageMarker';
 import Login from './components/Login';
+import History from './components/History';
 import toast, { Toaster } from 'react-hot-toast';
+import API_BASE_URL from './config';
 
 // Preload car diagram
 const preloadImg = new Image();
@@ -192,7 +194,7 @@ function App() {
         lessor_signature: lessorSigData,
       };
 
-      const response = await fetch('https://jlpco-backend-production.up.railway.app/api/generate-pdf', {
+      const response = await fetch(`${API_BASE_URL}/api/generate-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -232,6 +234,28 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleSessionExpired = () => {
+    toast.error('Session expired. Please login again.');
+    handleLogout();
+  };
+
+  // Start a fresh agreement from a past one. Everything specific to the
+  // previous hire is dropped: the signatures were never stored, and carrying
+  // the old damage marks or signing dates forward would describe the wrong
+  // handover.
+  const handleReuseAgreement = (previous) => {
+    const {
+      damage_notes, hirer_sig_date, lessor_sig_date,
+      hire_start, deposit_date, payment_start_date,
+      ...details
+    } = previous;
+    setFormData({ ...EMPTY_FORM, ...details });
+    setDamageMarkers([]);
+    hirerSigRef.current?.clear();
+    lessorSigRef.current?.clear();
+    setActiveTab('form');
   };
 
   // Clearing starts the next agreement rather than emptying everything: hirer,
@@ -309,6 +333,12 @@ function App() {
           onClick={() => setActiveTab('signatures')}
         >
           Signatures
+        </button>
+        <button
+          className={`tab ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          History
         </button>
       </div>
 
@@ -747,9 +777,18 @@ function App() {
             </div>
           </div>
         )}
+
+        {activeTab === 'history' && (
+          <History
+            authToken={authToken}
+            onSessionExpired={handleSessionExpired}
+            onReuse={handleReuseAgreement}
+          />
+        )}
       </div>
 
       {/* Footer */}
+      {activeTab !== 'history' && (
       <footer className="footer">
         <button
           className="btn btn-secondary"
@@ -766,6 +805,7 @@ function App() {
           {isGenerating ? 'Generating...' : 'Generate PDF'}
         </button>
       </footer>
+      )}
     </div>
   );
 }

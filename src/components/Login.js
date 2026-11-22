@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './Login.css';
+import API_BASE_URL from '../config';
 
 /**
  * Login Component
@@ -23,7 +24,7 @@ const Login = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://jlpco-backend-production.up.railway.app/api/login', {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
