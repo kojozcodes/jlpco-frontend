@@ -21,6 +21,15 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
   // overwriting results from a later one.
   const requestRef = useRef(0);
 
+  // Held in a ref rather than used directly. A parent that redefines this
+  // handler on each render would otherwise change the identity of load, which
+  // the search effect depends on, so the effect would re-run on every render
+  // and each run fetches: a request loop that locks the page up.
+  const sessionExpiredRef = useRef(onSessionExpired);
+  useEffect(() => {
+    sessionExpiredRef.current = onSessionExpired;
+  }, [onSessionExpired]);
+
   const authHeaders = useCallback(() => ({
     Authorization: `Bearer ${authToken}`,
   }), [authToken]);
@@ -34,7 +43,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
         { headers: authHeaders() }
       );
 
-      if (response.status === 401) { onSessionExpired(); return; }
+      if (response.status === 401) { sessionExpiredRef.current(); return; }
       if (response.status === 503) {
         if (request === requestRef.current) setUnavailable(true);
         return;
@@ -51,7 +60,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     } finally {
       if (request === requestRef.current) setIsLoading(false);
     }
-  }, [authHeaders, onSessionExpired]);
+  }, [authHeaders]);
 
   // Debounced so typing a registration does not fire a request per character.
   useEffect(() => {
@@ -59,25 +68,55 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
     return () => clearTimeout(timer);
   }, [search, load]);
 
-  const handleDownload = async (agreement) => {
+  const saveToDevice = (url, filename) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleView = async (agreement) => {
+    // The tab has to be opened during the tap itself. Opening it once the
+    // fetch resolves makes it a pop-up as far as Safari is concerned, and it
+    // gets blocked.
+    const viewer = window.open('', '_blank');
+
     setBusyId(agreement.id);
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/agreements/${agreement.id}/pdf`,
         { headers: authHeaders() }
       );
-      if (response.status === 401) { onSessionExpired(); return; }
-      if (!response.ok) throw new Error('Could not download agreement');
+      if (response.status === 401) {
+        if (viewer) viewer.close();
+        sessionExpiredRef.current();
+        return;
+      }
+      if (!response.ok) throw new Error('Could not open agreement');
 
-      const url = window.URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = agreement.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Typed explicitly so the viewer renders it rather than offering to save
+      // it, whatever the response headers said.
+      const blob = new Blob([await response.arrayBuffer()],
+                            { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      if (viewer && !viewer.closed) {
+        viewer.location = url;
+      } else {
+        // Blocked. Saving the file is the only fallback that does not navigate
+        // this tab away: there is no stored session, so leaving the page would
+        // log the operator out and empty the form they were working on.
+        saveToDevice(url, agreement.filename);
+        toast('Your browser blocked the preview, so it was saved instead');
+      }
+
+      // Long enough for the viewer to have loaded it. The blob is released
+      // when that tab closes in any case.
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     } catch (error) {
+      if (viewer) viewer.close();
       toast.error(error.message);
     } finally {
       setBusyId(null);
@@ -91,7 +130,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
         `${API_BASE_URL}/api/agreements/${agreement.id}/form`,
         { headers: authHeaders() }
       );
-      if (response.status === 401) { onSessionExpired(); return; }
+      if (response.status === 401) { sessionExpiredRef.current(); return; }
       if (!response.ok) throw new Error('Could not load those details');
 
       const data = await response.json();
@@ -118,7 +157,7 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
         `${API_BASE_URL}/api/agreements/${agreement.id}`,
         { method: 'DELETE', headers: authHeaders() }
       );
-      if (response.status === 401) { onSessionExpired(); return; }
+      if (response.status === 401) { sessionExpiredRef.current(); return; }
       if (!response.ok) throw new Error('Could not delete agreement');
 
       setAgreements((prev) => prev.filter((a) => a.id !== agreement.id));
@@ -201,10 +240,10 @@ const History = ({ authToken, onSessionExpired, onReuse }) => {
               <button
                 type="button"
                 className="history-btn primary"
-                onClick={() => handleDownload(agreement)}
+                onClick={() => handleView(agreement)}
                 disabled={busyId === agreement.id}
               >
-                Download
+                View
               </button>
               <button
                 type="button"
